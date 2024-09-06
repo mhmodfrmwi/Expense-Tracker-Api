@@ -19,8 +19,8 @@ This is an Expense Management API built using **Node.js**, **Express**, and **Mo
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-repository/expense-management-api.git
-   cd expense-management-api
+   git clone https://github.com/mhmodfrmwi/Expense-Tracker-Api
+   cd Expense-Tracker-Api
    ```
 
 2. Install dependencies:
