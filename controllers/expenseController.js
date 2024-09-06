@@ -126,14 +126,54 @@ const getExpense = async (req, res) => {
 const getAllExpenses = async (req, res) => {
   try {
     const authorization = req.headers["authorization"];
+    if (!authorization) {
+      return res.status(401).json({
+        status: statusTypes.ERROR,
+        message: "Authorization header missing",
+      });
+    }
+
     const token = authorization.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    } catch (err) {
+      return res.status(401).json({
+        status: statusTypes.ERROR,
+        message: "Invalid or expired token",
+      });
+    }
+
     const id = decoded.id;
 
-    const expenses = await Expense.find(
-      { userId: id },
-      { __v: false, userId: false }
-    );
+    const { timeFilter, start, end } = req.query;
+
+    let filter = { userId: id };
+
+    const currentDate = new Date();
+    let startDate, endDate;
+
+    if (timeFilter === "pastWeek") {
+      startDate = new Date(currentDate.setDate(currentDate.getDate() - 7));
+    } else if (timeFilter === "pastMonth") {
+      startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+    } else if (timeFilter === "last3Months") {
+      startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+    } else if (start && end) {
+      // Custom date range
+      startDate = new Date(start);
+      endDate = new Date(end);
+    }
+
+    if (startDate) {
+      filter.createdAt = { $gte: startDate };
+    }
+    if (endDate) {
+      filter.createdAt = { $lte: endDate };
+    }
+
+    const expenses = await Expense.find(filter).select("-__v -userId");
+
     res.status(200).json({
       status: statusTypes.SUCCESS,
       data: expenses,
@@ -146,6 +186,7 @@ const getAllExpenses = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   getAllExpenses,
   getExpense,
