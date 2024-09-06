@@ -1,30 +1,40 @@
-const jwt = require("jsonwebtoken");
-const expenseModel = require("../models/expenseModel");
 const roles = require("./roles");
 const statusTypes = require("./statusTypes");
-
+const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const expenseModel = require("../models/expenseModel");
 const userAllow = async (req, res) => {
   try {
     const expenseId = req.params.expenseId;
     const authorization = req.headers["authorization"];
 
     if (!authorization || !authorization.startsWith("Bearer ")) {
-      return res.status(401).json({
+      res.status(401).json({
         status: statusTypes.FAIL,
         message: "Authorization token is missing or invalid",
       });
+      return false;
     }
 
     const token = authorization.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
     const { id: userId, role: userRole } = decoded;
 
+    if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+      res.status(400).json({
+        status: statusTypes.FAIL,
+        message: "Invalid expense ID format",
+      });
+      return false;
+    }
+
     const expense = await expenseModel.findById(expenseId);
     if (!expense) {
-      return res.status(404).json({
+      res.status(404).json({
         status: statusTypes.FAIL,
         message: "Expense not found",
       });
+      return false;
     }
 
     const allowedRoles = [roles.ADMIN, roles.SUPER_ADMIN];
@@ -32,20 +42,21 @@ const userAllow = async (req, res) => {
       expense.userId.toString() !== userId &&
       !allowedRoles.includes(userRole)
     ) {
-      return res.status(403).json({
+      res.status(403).json({
         status: statusTypes.FAIL,
-        message: "You are not allowed to update this expense",
+        message: "You do not have any control on this expense",
       });
+      return false;
     }
 
-    // Return true if allowed
     return true;
   } catch (error) {
-    return res.status(500).json({
+    res.status(500).json({
       status: statusTypes.ERROR,
       message: "Authorization error",
       error: error.message,
     });
+    return false;
   }
 };
 module.exports = userAllow;
